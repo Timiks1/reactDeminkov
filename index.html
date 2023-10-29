@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Vue.js Starships App</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  </head>
+  <body>
+    <style>
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        display: flex;
+      }
+
+      .modal-content {
+        background: #fff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+      }
+    </style>
+    <div id="app">
+      <h1>Starships</h1>
+      <button @click="loadStarships">Load Starships</button>
+
+      <div v-for="starship in starships" :key="starship.name">
+        <h2>{{ starship.name }}</h2>
+        <p>Model: {{ starship.model }}</p>
+        <p>Manufacturer: {{ starship.manufacturer }}</p>
+        <button
+          @click="viewPilots(starship)"
+          :disabled="starship.pilots.length === 0"
+        >
+          View Pilots
+        </button>
+      </div>
+
+      <div id="pagination">
+        <button @click="loadPage('previous')" :disabled="!previousPage">
+          Previous
+        </button>
+        <button @click="loadPage('next')" :disabled="!nextPage">Next</button>
+      </div>
+      <div class="modal" v-if="showModal">
+        <div class="modal-content">
+          <pilot-info
+            v-for="pilot in pilots"
+            :key="pilot.name"
+            :pilot="pilot"
+          ></pilot-info>
+          <button @click="closeModal">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      Vue.component("pilot-info", {
+        props: {
+          pilot: Object,
+        },
+        template: `
+        <div class="modal">
+          <div class="modal-content">
+            <h3>{{ pilot.name }}</h3>
+            <p>Height: {{ pilot.height }}</p>
+            <p>Mass: {{ pilot.mass }}</p>
+          </div>
+          <button @click="$emit('close')">Close</button>
+        </div>
+      `,
+      });
+
+      new Vue({
+        el: "#app",
+        data: {
+          starships: [],
+          pilots: [],
+          showPilotsModal: false,
+          currentPage: 1,
+          previousPage: null,
+          nextPage: null,
+          showModal: false,
+        },
+        methods: {
+          loadStarships() {
+            fetch("https://swapi.dev/api/starships")
+              .then((response) => response.json())
+              .then((data) => {
+                this.starships = data.results;
+                this.previousPage = data.previous;
+                this.nextPage = data.next;
+              });
+          },
+          viewPilots(starship) {
+            this.pilots = [];
+            Promise.all(
+              starship.pilots.map((pilotUrl) => {
+                return fetch(pilotUrl)
+                  .then((response) => response.json())
+                  .then((data) => {
+                    this.pilots.push(data);
+                  });
+              })
+            ).then(() => {
+              this.showPilotsModal = true;
+              console.log("Opening modal"); // Отладочный вывод
+              this.showModal = true;
+
+              document.body.classList.add("modal-open");
+            });
+          },
+          closePilotsModal() {
+            this.showPilotsModal = false;
+            console.log("Closing modal"); // Отладочный вывод
+
+            document.body.classList.remove("modal-open");
+          },
+          loadPage(direction) {
+            const url =
+              direction === "next" ? this.nextPage : this.previousPage;
+
+            fetch(url)
+              .then((response) => response.json())
+              .then((data) => {
+                this.starships = data.results;
+                this.previousPage = data.previous;
+                this.nextPage = data.next;
+              });
+          },
+
+          closeModal() {
+            this.showModal = false;
+            document.body.classList.remove("modal-open");
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
